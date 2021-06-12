@@ -196,7 +196,7 @@ func main() {
 
 	// // we iterate through every user within our users array and
 	// // print out the user Type, their name, and their facebook url
-	// // as just an example
+	// // as just an example add
 	for i := 0; i < len(influencer); i++ {
 		fmt.Println("Influencers Type: " + influencer[i].Id)
 		// fmt.Println("User Age: " + strconv.Itoa(users.Users[i].Age))
