@@ -216,6 +216,8 @@ func ProcessFBmessage(influencer []Influencer, FBrequests []NSQFacebookMessage, 
 		for x := 0; x < len(influencer); x++ {
 
 			if FBrequests[i].Id == influencer[x].Source.Profile.Facebook.Id {
+				found = true
+
 				if FBrequests[i].Deleted_at == "" {
 					found = true
 
@@ -254,7 +256,7 @@ func ProcessFBmessage(influencer []Influencer, FBrequests []NSQFacebookMessage, 
 		}
 
 		///Index Kafka Message
-		if found == false {
+		if found == false && FBrequests[i].Deleted_at == "" {
 			fmt.Println("FB Did not find: " + strconv.Itoa(FBrequests[i].Id))
 		}
 	}
@@ -267,8 +269,9 @@ func ProcessTWmessage(influencer []Influencer, TWrequests []NSQTwitterMessage, F
 		for x := 0; x < len(influencer); x++ {
 
 			if TWrequests[i].Id == influencer[x].Source.Profile.Twitter.Id {
+				found = true
+
 				if TWrequests[i].Deleted_At == "" {
-					found = true
 
 					//Get Date values
 					RequestDate := GetDateAndTime(TWrequests[i].Updated_at)
@@ -305,7 +308,7 @@ func ProcessTWmessage(influencer []Influencer, TWrequests []NSQTwitterMessage, F
 		}
 
 		///Index Kafka Message
-		if found == false {
+		if found == false && TWrequests[i].Deleted_At == "" {
 			fmt.Println("TW Did not find: " + strconv.Itoa(TWrequests[i].Id))
 		}
 	}
