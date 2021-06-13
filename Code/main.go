@@ -10,7 +10,6 @@ import (
 	"time"
 
 	//"sync"
-
 	nsq "github.com/nsqio/go-nsq"
 	//"github.com/streadway/amqp"
 )
@@ -53,8 +52,8 @@ type NSQFacebookMessage struct {
 	About      string
 	Image      string
 	Location   string
-	Update_At  string
-	Deleted_At string
+	Updated_at string
+	Deleted_at string
 }
 
 type NSQTwitterMessage struct {
@@ -63,7 +62,7 @@ type NSQTwitterMessage struct {
 	Biography     string
 	Profile_image string
 	Location      string
-	Update_At     string
+	Updated_at    string
 	Deleted_At    string
 }
 
@@ -80,7 +79,7 @@ func getFBMessages(wg sync.WaitGroup, c chan struct{}, config nsq.Config, q nsq.
 			return err
 		}
 
-		if request.Username != "" || request.Id != 0 || request.Update_At != "" {
+		if request.Username != "" || request.Id != 0 || request.Updated_at != "" {
 			FBrequests = append(FBrequests, request)
 		}
 
@@ -118,7 +117,7 @@ func getTwitterMessages(wg sync.WaitGroup, c chan struct{}, config nsq.Config, q
 			return err
 		}
 
-		if request.Screen_name != "" || request.Id != 0 || request.Update_At != "" {
+		if request.Screen_name != "" || request.Id != 0 || request.Updated_at != "" {
 			TWrequests = append(TWrequests, request)
 		}
 
@@ -155,19 +154,22 @@ func main() {
 	config := nsq.NewConfig()
 	q, _ := nsq.NewConsumer("facebook", "ch", config)
 
+	///Creating the Facebook Messages
 	var FBrequests []NSQFacebookMessage = getFBMessages(*wg, c, *config, *q)
 
-	for i := 0; i < len(FBrequests); i++ {
-		fmt.Println("Facebook Message: " + FBrequests[i].Username)
-	}
+	// for i := 0; i < len(FBrequests); i++ {
+	// 	fmt.Println("Facebook Message: " + FBrequests[i].Username)
+	// }
 
+	///Setting up the new Consumer
 	config = nsq.NewConfig()
 	q, _ = nsq.NewConsumer("twitter", "ch", config)
 
+	///Creating the Facebook Messages
 	var TWrequests []NSQTwitterMessage = getTwitterMessages(*wg, c, *config, *q)
 
 	for i := 0; i < len(TWrequests); i++ {
-		fmt.Println("Twitter Message: " + TWrequests[i].Screen_name)
+		//fmt.Println("Twitter Message: " + TWrequests[i].Screen_name)
 	}
 
 	// Open our jsonFile
@@ -194,14 +196,48 @@ func main() {
 	//Prints Everything
 	//fmt.Printf("Influencers : %+v", users)
 
+	for i := 0; i < len(FBrequests); i++ {
+		found := false
+		for x := 0; x < len(influencer); x++ {
+
+			if FBrequests[i].Id == influencer[x].Source.Profile.Facebook.Id {
+				found = true
+
+				//Get Date values
+				UpdateAtString := []rune(FBrequests[i].Updated_at)
+				year := string(UpdateAtString[0:4])
+				fmt.Println(" RUNE SUBSTRING:", year)
+
+				break
+			}
+		}
+
+		if found == false {
+			//fmt.Println("Did not find: " + strconv.Itoa(FBrequests[i].Id))
+		}
+	}
+
 	// // we iterate through every user within our users array and
 	// // print out the user Type, their name, and their facebook url
-	// // as just an example add
-	for i := 0; i < len(influencer); i++ {
-		fmt.Println("Influencers Type: " + influencer[i].Id)
-		// fmt.Println("User Age: " + strconv.Itoa(users.Users[i].Age))
-		// fmt.Println("User Name: " + users.Users[i].Name)
-		// fmt.Println("Facebook Url: " + users.Users[i].Social.Facebook)
-		// fmt.Println("Id: " + strconv.Itoa(users.Users[i].Id))
-	}
+	// // as just an example
+	// for i := 0; i < len(influencer); i++ {
+
+	// 	if influencer[i].Source.Profile.Facebook.Id != 0 {
+	// 		var found bool = false
+	// 		for x := 0; x < len(FBrequests); x++ {
+
+	// 		}
+
+	// 	}
+
+	// 	if influencer[i].Source.Profile.Twitter.Id != 0 {
+
+	// 	}
+
+	// 	fmt.Println("Influencers Type: " + influencer[i].Id)
+	// 	// fmt.Println("User Age: " + strconv.Itoa(users.Users[i].Age))
+	// 	// fmt.Println("User Name: " + users.Users[i].Name)
+	// 	// fmt.Println("Facebook Url: " + users.Users[i].Social.Facebook)
+	// 	// fmt.Println("Id: " + strconv.Itoa(users.Users[i].Id))
+	// }
 }
