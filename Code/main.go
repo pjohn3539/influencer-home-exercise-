@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	//"github.com/segmentio/kafka-go"
 	nsq "github.com/nsqio/go-nsq"
 )
 
@@ -163,32 +164,32 @@ func GetDateAndTime(d string) []int {
 
 	year, err := strconv.Atoi(string(UpdateAtString[0:4]))
 	if err != nil {
-		log.Panic("Could not connect")
+		log.Panic("Could not convert")
 	}
 
 	month, err := strconv.Atoi(string(UpdateAtString[5:7]))
 	if err != nil {
-		log.Panic("Could not connect")
+		log.Panic("Could not convert")
 	}
 
 	day, err := strconv.Atoi(string(UpdateAtString[8:10]))
 	if err != nil {
-		log.Panic("Could not connect")
+		log.Panic("Could not convert")
 	}
 
 	hour, err := strconv.Atoi(string(UpdateAtString[11:13]))
 	if err != nil {
-		log.Panic("Could not connect")
+		log.Panic("Could not convert")
 	}
 
 	min, err := strconv.Atoi(string(UpdateAtString[14:16]))
 	if err != nil {
-		log.Panic("Could not connect")
+		log.Panic("Could not convert")
 	}
 
 	sec, err := strconv.Atoi(string(UpdateAtString[17:19]))
 	if err != nil {
-		log.Panic("Could not connect")
+		log.Panic("Could not convert")
 	}
 
 	date = append(date, year)
