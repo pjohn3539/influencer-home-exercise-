@@ -192,7 +192,7 @@ func GetDateAndTime(d string) []int {
 	return date
 }
 
-func CompareDates(request []int, database []int) {
+func CompareDates(request []int, database []int) bool {
 	//Checks Year
 
 	for i := 1; i < len(request); i++ {
@@ -200,11 +200,113 @@ func CompareDates(request []int, database []int) {
 		if request[i] == database[i] {
 			continue
 		} else if request[i] > database[i] {
-			///Update Kafka Message
-
-			break
+			return true
 		} else {
 			break
+		}
+	}
+
+	return false
+}
+
+func ProcessFBmessage(influencer []Influencer, FBrequests []NSQFacebookMessage, TWrequests []NSQTwitterMessage, TWMap map[string]int) {
+
+	for i := 0; i < len(FBrequests); i++ {
+		found := false
+		for x := 0; x < len(influencer); x++ {
+
+			if FBrequests[i].Id == influencer[x].Source.Profile.Facebook.Id {
+				if FBrequests[i].Deleted_at == "" {
+					found = true
+
+					//Get Date values
+					RequestDate := GetDateAndTime(FBrequests[i].Updated_at)
+					InfluencerDate := GetDateAndTime(influencer[x].Source.Profile.Facebook.Updated_at)
+
+					needToUpdate := CompareDates(RequestDate, InfluencerDate)
+
+					//Update Kafka message
+					if needToUpdate {
+						fmt.Println("FB Needs Update: " + strconv.Itoa(FBrequests[i].Id))
+					}
+
+					_, prs := TWMap[FBrequests[i].Username]
+					//fmt.Println("prs:", prs)
+					if prs {
+						if influencer[x].Source.Profile.Facebook.Id == 0 {
+							//update kafka message
+							fmt.Println("TW is needed for ID: " + strconv.Itoa(TWrequests[i].Id))
+						}
+					}
+
+				} else {
+					if influencer[x].Source.Profile.Twitter.Id == 0 {
+						//Delete Kafka message
+						fmt.Println("FB Needs Delete: " + strconv.Itoa(FBrequests[i].Id))
+					} else {
+						//Update Kafka message
+						fmt.Println("FB Needs Update 2: " + strconv.Itoa(FBrequests[i].Id))
+					}
+				}
+				break
+			}
+
+		}
+
+		///Index Kafka Message
+		if found == false {
+			fmt.Println("FB Did not find: " + strconv.Itoa(FBrequests[i].Id))
+		}
+	}
+}
+
+func ProcessTWmessage(influencer []Influencer, TWrequests []NSQTwitterMessage, FBrequests []NSQFacebookMessage, FBMap map[string]int) {
+
+	for i := 0; i < len(TWrequests); i++ {
+		found := false
+		for x := 0; x < len(influencer); x++ {
+
+			if TWrequests[i].Id == influencer[x].Source.Profile.Twitter.Id {
+				if TWrequests[i].Deleted_At == "" {
+					found = true
+
+					//Get Date values
+					RequestDate := GetDateAndTime(TWrequests[i].Updated_at)
+					InfluencerDate := GetDateAndTime(influencer[x].Source.Profile.Twitter.Updated_at)
+
+					needToUpdate := CompareDates(RequestDate, InfluencerDate)
+
+					//Update Kafka message
+					if needToUpdate {
+						fmt.Println("TW Needs Update: " + strconv.Itoa(TWrequests[i].Id))
+					}
+
+					_, prs := FBMap[TWrequests[i].Screen_name]
+					//fmt.Println("prs:", prs)
+					if prs {
+						if influencer[x].Source.Profile.Facebook.Id == 0 {
+							//update kafka message
+							fmt.Println("FB is needed for ID: " + strconv.Itoa(TWrequests[i].Id))
+						}
+					}
+
+				} else {
+					if influencer[x].Source.Profile.Twitter.Id == 0 {
+						//Delete Kafka message
+						fmt.Println("TW Needs Delete: " + strconv.Itoa(TWrequests[i].Id))
+					} else {
+						//Update Kafka message
+						fmt.Println("TW Needs Update 2: " + strconv.Itoa(TWrequests[i].Id))
+					}
+				}
+				break
+			}
+
+		}
+
+		///Index Kafka Message
+		if found == false {
+			fmt.Println("TW Did not find: " + strconv.Itoa(TWrequests[i].Id))
 		}
 	}
 }
@@ -221,9 +323,11 @@ func main() {
 	///Creating the Facebook Messages
 	var FBrequests []NSQFacebookMessage = getFBMessages(*wg, c, *config, *q)
 
-	// for i := 0; i < len(FBrequests); i++ {
-	// 	fmt.Println("Facebook Message: " + FBrequests[i].Username)
-	// }
+	FBmap := make(map[string]int)
+
+	for i := 0; i < len(FBrequests); i++ {
+		FBmap[FBrequests[i].Username] = i
+	}
 
 	///Setting up the new Consumer
 	config = nsq.NewConfig()
@@ -231,9 +335,10 @@ func main() {
 
 	///Creating the Facebook Messages
 	var TWrequests []NSQTwitterMessage = getTwitterMessages(*wg, c, *config, *q)
+	TWmap := make(map[string]int)
 
 	for i := 0; i < len(TWrequests); i++ {
-		//fmt.Println("Twitter Message: " + TWrequests[i].Screen_name)
+		TWmap[TWrequests[i].Screen_name] = 1
 	}
 
 	// Open our jsonFile
@@ -260,50 +365,8 @@ func main() {
 	//Prints Everything
 	//fmt.Printf("Influencers : %+v", users)
 
-	for i := 0; i < len(FBrequests); i++ {
-		found := false
-		for x := 0; x < len(influencer); x++ {
+	ProcessFBmessage(influencer, FBrequests, TWrequests, TWmap)
 
-			if FBrequests[i].Id == influencer[x].Source.Profile.Facebook.Id {
-				found = true
+	ProcessTWmessage(influencer, TWrequests, FBrequests, FBmap)
 
-				//Get Date values
-				RequestDate := GetDateAndTime(FBrequests[i].Updated_at)
-				InfluencerDate := GetDateAndTime(influencer[x].Source.Profile.Facebook.Updated_at)
-
-				CompareDates(RequestDate, InfluencerDate)
-
-				break
-			}
-		}
-
-		///Index Kafka Message
-		if found == false {
-			//fmt.Println("Did not find: " + strconv.Itoa(FBrequests[i].Id))
-		}
-	}
-
-	// // we iterate through every user within our users array and
-	// // print out the user Type, their name, and their facebook url
-	// // as just an example
-	// for i := 0; i < len(influencer); i++ {
-
-	// 	if influencer[i].Source.Profile.Facebook.Id != 0 {
-	// 		var found bool = false
-	// 		for x := 0; x < len(FBrequests); x++ {
-
-	// 		}
-
-	// 	}
-
-	// 	if influencer[i].Source.Profile.Twitter.Id != 0 {
-
-	// 	}
-
-	// 	fmt.Println("Influencers Type: " + influencer[i].Id)
-	// 	// fmt.Println("User Age: " + strconv.Itoa(users.Users[i].Age))
-	// 	// fmt.Println("User Name: " + users.Users[i].Name)
-	// 	// fmt.Println("Facebook Url: " + users.Users[i].Social.Facebook)
-	// 	// fmt.Println("Id: " + strconv.Itoa(users.Users[i].Id))
-	// }
 }
