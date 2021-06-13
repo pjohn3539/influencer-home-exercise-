@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"strconv"
 	"sync"
 	"time"
 
@@ -40,10 +41,10 @@ type Profile struct {
 // Social struct which contains a
 // list of links
 type SocialMedia struct {
-	Id       int    `json:"id"`
-	Username string `json:"screen_name"`
-	Bio      string `json:"bio"`
-	UpdateAt string `json:"updated_at"`
+	Id         int    `json:"id"`
+	Username   string `json:"screen_name"`
+	Bio        string `json:"bio"`
+	Updated_at string `json:"updated_at"`
 }
 
 type NSQFacebookMessage struct {
@@ -145,6 +146,69 @@ func getTwitterMessages(wg sync.WaitGroup, c chan struct{}, config nsq.Config, q
 
 }
 
+func GetDateAndTime(d string) []int {
+
+	var date []int
+
+	UpdateAtString := []rune(d)
+
+	year, err := strconv.Atoi(string(UpdateAtString[0:4]))
+	if err != nil {
+		log.Panic("Could not connect")
+	}
+
+	month, err := strconv.Atoi(string(UpdateAtString[5:7]))
+	if err != nil {
+		log.Panic("Could not connect")
+	}
+
+	day, err := strconv.Atoi(string(UpdateAtString[8:10]))
+	if err != nil {
+		log.Panic("Could not connect")
+	}
+
+	hour, err := strconv.Atoi(string(UpdateAtString[11:13]))
+	if err != nil {
+		log.Panic("Could not connect")
+	}
+
+	min, err := strconv.Atoi(string(UpdateAtString[14:16]))
+	if err != nil {
+		log.Panic("Could not connect")
+	}
+
+	sec, err := strconv.Atoi(string(UpdateAtString[17:19]))
+	if err != nil {
+		log.Panic("Could not connect")
+	}
+
+	date = append(date, year)
+	date = append(date, month)
+	date = append(date, day)
+	date = append(date, hour)
+	date = append(date, min)
+	date = append(date, sec)
+
+	return date
+}
+
+func CompareDates(request []int, database []int) {
+	//Checks Year
+
+	for i := 1; i < len(request); i++ {
+
+		if request[i] == database[i] {
+			continue
+		} else if request[i] > database[i] {
+			///Update Kafka Message
+
+			break
+		} else {
+			break
+		}
+	}
+}
+
 func main() {
 
 	wg := &sync.WaitGroup{}
@@ -204,14 +268,16 @@ func main() {
 				found = true
 
 				//Get Date values
-				UpdateAtString := []rune(FBrequests[i].Updated_at)
-				year := string(UpdateAtString[0:4])
-				fmt.Println(" RUNE SUBSTRING:", year)
+				RequestDate := GetDateAndTime(FBrequests[i].Updated_at)
+				InfluencerDate := GetDateAndTime(influencer[x].Source.Profile.Facebook.Updated_at)
+
+				CompareDates(RequestDate, InfluencerDate)
 
 				break
 			}
 		}
 
+		///Index Kafka Message
 		if found == false {
 			//fmt.Println("Did not find: " + strconv.Itoa(FBrequests[i].Id))
 		}
