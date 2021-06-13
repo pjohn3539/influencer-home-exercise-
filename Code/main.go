@@ -10,13 +10,11 @@ import (
 	"sync"
 	"time"
 
-	//"sync"
 	nsq "github.com/nsqio/go-nsq"
-	//"github.com/streadway/amqp"
 )
 
-// User struct which contains a name
-// a type and a list of social links
+// Influencer struct which contains its
+//values
 type Influencer struct {
 	Index  string `json:"_index"`
 	Type   string `json:"_type"`
@@ -24,22 +22,22 @@ type Influencer struct {
 	Source Source `json:"_source"`
 }
 
-// Social struct which contains a
-// list of links
+// Source struct which contains its
+//values
 type Source struct {
 	Profile  Profile `json:"profiles"`
 	UpdateAt string  `json:"updated_at"`
 }
 
-// Social struct which contains a
-// list of links
+// Profile struct which contains its
+//values
 type Profile struct {
 	Facebook SocialMedia `json:"facebook"`
 	Twitter  SocialMedia `json:"twitter"`
 }
 
-// Social struct which contains a
-// list of links
+// SocialMedia struct which contains a
+// values
 type SocialMedia struct {
 	Id         int    `json:"id"`
 	Username   string `json:"screen_name"`
@@ -47,6 +45,8 @@ type SocialMedia struct {
 	Updated_at string `json:"updated_at"`
 }
 
+// Message struct which contains
+// messages from the Facebook topic
 type NSQFacebookMessage struct {
 	Id         int
 	Username   string
@@ -57,6 +57,8 @@ type NSQFacebookMessage struct {
 	Deleted_at string
 }
 
+// Message struct which contains
+// messages from the Twitter topic
 type NSQTwitterMessage struct {
 	Id            int
 	Screen_name   string
@@ -67,6 +69,8 @@ type NSQTwitterMessage struct {
 	Deleted_At    string
 }
 
+// getFBMessages will retrieve the NSQ messages from the Facebook Topic
+// and returns the messages in an array of FBRequests
 func getFBMessages(wg sync.WaitGroup, c chan struct{}, config nsq.Config, q nsq.Consumer) []NSQFacebookMessage {
 	var FBrequests []NSQFacebookMessage
 
@@ -106,6 +110,8 @@ func getFBMessages(wg sync.WaitGroup, c chan struct{}, config nsq.Config, q nsq.
 	return FBrequests
 }
 
+// getTwitterMessages will retrieve the NSQ messages from the Twitter Topic
+// and returns the messages in an array of TWRequests
 func getTwitterMessages(wg sync.WaitGroup, c chan struct{}, config nsq.Config, q nsq.Consumer) []NSQTwitterMessage {
 	var TWrequests []NSQTwitterMessage
 
@@ -146,6 +152,9 @@ func getTwitterMessages(wg sync.WaitGroup, c chan struct{}, config nsq.Config, q
 
 }
 
+// GetDateAndTime will recieves a string and proceeds to
+// decipher it into int values for each time section and
+// returns it as an array
 func GetDateAndTime(d string) []int {
 
 	var date []int
@@ -192,8 +201,9 @@ func GetDateAndTime(d string) []int {
 	return date
 }
 
+// CompareDates iterates through request array and
+// see which is bigger
 func CompareDates(request []int, database []int) bool {
-	//Checks Year
 
 	for i := 1; i < len(request); i++ {
 
@@ -209,6 +219,9 @@ func CompareDates(request []int, database []int) bool {
 	return false
 }
 
+//The ProcessFBmessage function process each of the Facebook NSQ messages and detects
+//if we need to create index, update, or delete Kafka message
+//from it
 func ProcessFBmessage(influencer []Influencer, FBrequests []NSQFacebookMessage, TWrequests []NSQTwitterMessage, TWMap map[string]int) {
 
 	for i := 0; i < len(FBrequests); i++ {
@@ -262,6 +275,9 @@ func ProcessFBmessage(influencer []Influencer, FBrequests []NSQFacebookMessage, 
 	}
 }
 
+//The ProcessTWmessage function process each of the Twitter NSQ messages and detects
+//if we need to create index, update, or delete Kafka message
+//from it
 func ProcessTWmessage(influencer []Influencer, TWrequests []NSQTwitterMessage, FBrequests []NSQFacebookMessage, FBMap map[string]int) {
 
 	for i := 0; i < len(TWrequests); i++ {
@@ -316,30 +332,37 @@ func ProcessTWmessage(influencer []Influencer, TWrequests []NSQTwitterMessage, F
 
 func main() {
 
+	//Setting my timer
 	wg := &sync.WaitGroup{}
 	wg.Add(2)
 	c := make(chan struct{})
 
+	//Setting up the new Consumer
 	config := nsq.NewConfig()
 	q, _ := nsq.NewConsumer("facebook", "ch", config)
 
 	///Creating the Facebook Messages
 	var FBrequests []NSQFacebookMessage = getFBMessages(*wg, c, *config, *q)
 
+	//Initializing the FB Map
 	FBmap := make(map[string]int)
 
+	///Setting up the FB Username Map
 	for i := 0; i < len(FBrequests); i++ {
 		FBmap[FBrequests[i].Username] = i
 	}
 
-	///Setting up the new Consumer
+	//Setting up the new Consumer
 	config = nsq.NewConfig()
 	q, _ = nsq.NewConsumer("twitter", "ch", config)
 
 	///Creating the Facebook Messages
 	var TWrequests []NSQTwitterMessage = getTwitterMessages(*wg, c, *config, *q)
+
+	//Initializing the FB Map
 	TWmap := make(map[string]int)
 
+	///Setting up the TW Screen Name Map
 	for i := 0; i < len(TWrequests); i++ {
 		TWmap[TWrequests[i].Screen_name] = 1
 	}
@@ -352,24 +375,24 @@ func main() {
 	}
 
 	fmt.Println("Successfully Opened influencers.json")
+
 	// defer the closing of our jsonFile so that we can parse it later on
 	defer jsonFile.Close()
 
 	// read our opened xmlFile as a byte array.
 	byteValue, _ := ioutil.ReadAll(jsonFile)
 
-	// we initialize our Users array
+	// we initialize our influencer array
 	var influencer []Influencer
 
-	// we unmarshal our byteArray which contains our
-	// jsonFile's content into 'users' which we defined above
+	// Unmarshaling our byteArray which contains our
+	// jsonFile's content into 'influencer' which we defined above
 	json.Unmarshal([]byte(byteValue), &influencer)
 
-	//Prints Everything
-	//fmt.Printf("Influencers : %+v", users)
-
+	///Calling a function to look through the FB Messages
 	ProcessFBmessage(influencer, FBrequests, TWrequests, TWmap)
 
+	///Calling a function to look through the TW Messages
 	ProcessTWmessage(influencer, TWrequests, FBrequests, FBmap)
 
 }
